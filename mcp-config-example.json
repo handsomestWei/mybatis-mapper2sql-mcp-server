@@ -1,0 +1,20 @@
+{
+    "mcpServers": {
+        "mapper2sql": {
+            "command": "java",
+            "args": [
+                "-DdbType=mysql",
+                "-DjdbcDriver=com.mysql.cj.jdbc.Driver",
+                "-DjdbcDriverJar=/path/to/mysql-connector-java-8.0.33.jar",
+                "-DjdbcUrl=jdbc:mysql://localhost:3306/testdb",
+                "-DuserName=root",
+                "-Dpassword=your_password_here",
+                "-jar",
+                "mapper2sql-mcp-server-1.0.0.jar"
+            ],
+            "env": {
+                "JAVA_HOME": "/path/to/jdk17"
+            }
+        }
+    }
+}

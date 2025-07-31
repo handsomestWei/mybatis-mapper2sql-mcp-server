@@ -1,0 +1,112 @@
+{
+    "name": "mapper2sql",
+    "version": "1.0.0",
+    "description": "Extract SQL from MyBatis mapper XML files with parameter mocking and testing capabilities",
+    "author": "handsomestWei",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/handsomestWei/mybatis-mapper2sql-mcp-server"
+    },
+    "keywords": [
+        "mybatis",
+        "sql",
+        "mapper",
+        "xml",
+        "extraction",
+        "testing",
+        "mcp"
+    ],
+    "tools": [
+        {
+            "name": "parse_mapper",
+            "description": "Parse MyBatis mapper XML files and extract SQL statements with placeholders",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "file_path": {
+                        "type": "string",
+                        "description": "Path to mapper XML file or directory"
+                    }
+                },
+                "required": [
+                    "file_path"
+                ]
+            }
+        },
+        {
+            "name": "parse_mapper_with_mock",
+            "description": "Parse MyBatis mapper XML files and extract SQL statements with parameter mocking",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "file_path": {
+                        "type": "string",
+                        "description": "Path to mapper XML file or directory"
+                    },
+                    "use_jdbc_connection": {
+                        "type": "boolean",
+                        "description": "Whether to use JDBC connection for type inference (default: false)"
+                    }
+                },
+                "required": [
+                    "file_path"
+                ]
+            }
+        },
+        {
+            "name": "parse_mapper_with_test",
+            "description": "Parse MyBatis mapper XML files, extract SQL statements with parameter mocking, and test execution",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "file_path": {
+                        "type": "string",
+                        "description": "Path to mapper XML file or directory"
+                    }
+                },
+                "required": [
+                    "file_path"
+                ]
+            }
+        }
+    ],
+    "examples": [
+        {
+            "name": "Basic SQL Extraction",
+            "description": "Extract SQL from a MyBatis mapper XML file",
+            "tool": "parse_mapper",
+            "arguments": {
+                "file_path": "/path/to/UserMapper.xml"
+            }
+        },
+        {
+            "name": "SQL Extraction with Parameter Mocking",
+            "description": "Extract SQL with automatically mocked parameters",
+            "tool": "parse_mapper_with_mock",
+            "arguments": {
+                "file_path": "/path/to/UserMapper.xml",
+                "use_jdbc_connection": true
+            }
+        },
+        {
+            "name": "SQL Testing",
+            "description": "Extract SQL, mock parameters, and test execution",
+            "tool": "parse_mapper_with_test",
+            "arguments": {
+                "file_path": "/path/to/UserMapper.xml"
+            }
+        }
+    ],
+    "installation": {
+        "type": "jar",
+        "downloadUrl": "https://github.com/handsomestWei/mybatis-mapper2sql-mcp-server/releases/download/v1.0.0/mapper2sql-mcp-server-1.0.0.jar",
+        "requirements": {
+            "java": ">=11",
+            "memory": "512MB"
+        }
+    },
+    "documentation": {
+        "url": "https://github.com/handsomestWei/mybatis-mapper2sql-mcp-server/blob/main/README.md"
+    }
+}

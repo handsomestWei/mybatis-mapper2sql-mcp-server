@@ -149,7 +149,7 @@
                 </executions>
             </plugin>
 
-            <!-- 复制system scope的依赖 -->
+            <!-- 复制本地libs目录引用的system scope的依赖 -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>

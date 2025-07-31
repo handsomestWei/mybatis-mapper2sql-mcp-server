@@ -20,7 +20,7 @@
     </appender>
 
     <!-- Root Logger -->
-    <root level="INFO">
+    <root level="DEBUG">
         <appender-ref ref="CONSOLE" />
         <appender-ref ref="FILE" />
     </root>
@@ -29,7 +29,7 @@
     <logger name="com.wjy.mapper2sql.mcp" level="DEBUG" />
 
     <!-- MCP Logger -->
-    <logger name="com.modelcontextprotocol" level="INFO" />
+    <logger name="io.modelcontextprotocol" level="DEBUG" />
 
     <!-- MyBatis Logger -->
     <logger name="org.apache.ibatis" level="WARN" />
