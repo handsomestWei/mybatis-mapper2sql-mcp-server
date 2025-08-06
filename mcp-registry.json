@@ -3,7 +3,7 @@
     "version": "1.0.0",
     "description": "Extract SQL from MyBatis mapper XML files with parameter mocking and testing capabilities",
     "author": "handsomestWei",
-    "license": "MIT",
+    "license": "Apache License 2.0",
     "repository": {
         "type": "git",
         "url": "https://github.com/handsomestWei/mybatis-mapper2sql-mcp-server"
@@ -20,53 +20,49 @@
     "tools": [
         {
             "name": "parse_mapper",
-            "description": "Parse MyBatis mapper XML files and extract SQL statements with placeholders",
+            "description": "Parse MyBatis mapper XML files and extract SQL statements with placeholders (no parameter mocking)",
             "inputSchema": {
                 "type": "object",
                 "properties": {
-                    "file_path": {
+                    "filePath": {
                         "type": "string",
                         "description": "Path to mapper XML file or directory"
                     }
                 },
                 "required": [
-                    "file_path"
+                    "filePath"
                 ]
             }
         },
         {
-            "name": "parse_mapper_with_mock",
-            "description": "Parse MyBatis mapper XML files and extract SQL statements with parameter mocking",
+            "name": "parse_mapper_and_mock",
+            "description": "Parse MyBatis mapper XML files and extract SQL statements and mock parameters",
             "inputSchema": {
                 "type": "object",
                 "properties": {
-                    "file_path": {
+                    "filePath": {
                         "type": "string",
                         "description": "Path to mapper XML file or directory"
-                    },
-                    "use_jdbc_connection": {
-                        "type": "boolean",
-                        "description": "Whether to use JDBC connection for type inference (default: false)"
                     }
                 },
                 "required": [
-                    "file_path"
+                    "filePath"
                 ]
             }
         },
         {
-            "name": "parse_mapper_with_test",
+            "name": "parse_mapper_and_run_test",
             "description": "Parse MyBatis mapper XML files, extract SQL statements with parameter mocking, and test execution",
             "inputSchema": {
                 "type": "object",
                 "properties": {
-                    "file_path": {
+                    "filePath": {
                         "type": "string",
                         "description": "Path to mapper XML file or directory"
                     }
                 },
                 "required": [
-                    "file_path"
+                    "filePath"
                 ]
             }
         }
@@ -74,27 +70,26 @@
     "examples": [
         {
             "name": "Basic SQL Extraction",
-            "description": "Extract SQL from a MyBatis mapper XML file",
+            "description": "Extract SQL from a MyBatis mapper XML file with placeholders",
             "tool": "parse_mapper",
             "arguments": {
-                "file_path": "/path/to/UserMapper.xml"
+                "filePath": "/path/to/UserMapper.xml"
             }
         },
         {
             "name": "SQL Extraction with Parameter Mocking",
             "description": "Extract SQL with automatically mocked parameters",
-            "tool": "parse_mapper_with_mock",
+            "tool": "parse_mapper_and_mock",
             "arguments": {
-                "file_path": "/path/to/UserMapper.xml",
-                "use_jdbc_connection": true
+                "filePath": "/path/to/UserMapper.xml"
             }
         },
         {
             "name": "SQL Testing",
             "description": "Extract SQL, mock parameters, and test execution",
-            "tool": "parse_mapper_with_test",
+            "tool": "parse_mapper_and_run_test",
             "arguments": {
-                "file_path": "/path/to/UserMapper.xml"
+                "filePath": "/path/to/UserMapper.xml"
             }
         }
     ],

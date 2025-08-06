@@ -1,6 +1,6 @@
 @echo off
 setlocal enabledelayedexpansion
-echo 使用JDK 17运行thin jar文件（支持JDBC配置）...
+echo 使用JDK 17运行fat jar文件（支持JDBC配置）...
 
 REM 获取脚本所在目录的上级目录（项目根目录）
 set SCRIPT_DIR=%~dp0
@@ -40,20 +40,8 @@ if not exist "target\mapper2sql-mcp-server-1.0.0.jar" (
     exit /b 1
 )
 
-REM 检查lib目录是否存在
-if not exist "target\lib" (
-    echo 错误：找不到lib目录，请先构建项目
-    echo 期望的lib目录路径: target\lib
-    echo.
-    echo 请运行以下命令构建项目：
-    echo scripts\build-with-jdk17.bat
-    pause
-    exit /b 1
-)
-
 echo.
 echo 找到jar文件: target\mapper2sql-mcp-server-1.0.0.jar
-echo 找到lib目录: target\lib
 
 REM 构建Java命令参数
 set JAVA_OPTS=
@@ -75,9 +63,9 @@ if "%JAVA_OPTS%"=="" (
     )
     if not "%JDBC_DRIVER%"=="" (
         if not "%JAVA_OPTS%"=="" (
-            set JAVA_OPTS=%JAVA_OPTS% -DjdbcDriver=%JDBC_DRIVER%
+            set JAVA_OPTS=%JAVA_OPTS% -DjdbcDriverClass=%JDBC_DRIVER%
         ) else (
-            set JAVA_OPTS=-DjdbcDriver=%JDBC_DRIVER%
+            set JAVA_OPTS=-DjdbcDriverClass=%JDBC_DRIVER%
         )
     )
     if not "%JDBC_DRIVER_JAR%"=="" (
@@ -121,12 +109,15 @@ if not "%JAVA_OPTS%"=="" (
     echo.
     echo 使用方法：
     echo 1. 命令行参数方式：
-    echo    scripts\run-jar.bat -DdbType=mysql -DjdbcDriver=com.mysql.cj.jdbc.Driver -DjdbcUrl=jdbc:mysql://localhost:3306/testdb
+    echo    scripts\run-jar.bat -DdbType=mysql -DjdbcDriver=com.mysql.cj.jdbc.Driver -DjdbcDriverJar=D:\\apache-maven-repo\\com\\mysql\\mysql-connector-j\\8.0.33\\mysql-connector-j-8.0.33.jar -DjdbcUrl=jdbc:mysql://localhost:3306/testdb -DuserName=root -Dpassword=password
     echo.
     echo 2. 环境变量方式：
     echo    set DB_TYPE=mysql
     echo    set JDBC_DRIVER=com.mysql.cj.jdbc.Driver
+    echo    set JDBC_DRIVER_JAR=D:\\apache-maven-repo\\com\\mysql\\mysql-connector-j\\8.0.33\\mysql-connector-j-8.0.33.jar
     echo    set JDBC_URL=jdbc:mysql://localhost:3306/testdb
+    echo    set DB_USERNAME=root
+    echo    set DB_PASSWORD=password
     echo    scripts\run-jar.bat
     echo.
 )
@@ -134,21 +125,11 @@ if not "%JAVA_OPTS%"=="" (
 echo.
 echo 开始运行MCP服务器...
 
-REM 构建类路径（包含lib目录中的所有jar文件）
-set CLASSPATH=target\mapper2sql-mcp-server-1.0.0.jar
-
-REM 添加lib目录中的所有jar文件到类路径
-for %%f in (target\lib\*.jar) do (
-    set CLASSPATH=!CLASSPATH!;%%f
-)
-
-echo 类路径: %CLASSPATH%
-
-REM 运行jar文件（使用-cp参数指定类路径）
+REM 运行fat jar文件（使用-jar参数）
 if not "%JAVA_OPTS%"=="" (
-    java %JAVA_OPTS% -cp "%CLASSPATH%" com.wjy.mapper2sql.mcp.Mapper2SqlMcpStdioServer
+    java %JAVA_OPTS% -jar target\mapper2sql-mcp-server-1.0.0.jar
 ) else (
-    java -cp "%CLASSPATH%" com.wjy.mapper2sql.mcp.Mapper2SqlMcpStdioServer
+    java -jar target\mapper2sql-mcp-server-1.0.0.jar
 )
 
 echo.

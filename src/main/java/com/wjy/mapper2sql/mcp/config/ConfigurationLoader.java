@@ -36,12 +36,11 @@ public class ConfigurationLoader {
     private static final String DEFAULT_DB_TYPE = "mysql";
     private static final String DEFAULT_JDBC_DRIVER = "com.mysql.cj.jdbc.Driver";
 
-
     /**
      * 校验数据库类型，如果校验失败，则退出程序
      */
     public static void validateDbTypeBeforeStart() {
-        logger.info("开始校验数据库类型配置...");
+        logger.info("Starting database type configuration validation...");
 
         try {
             // 从系统属性或环境变量读取数据库类型
@@ -49,11 +48,11 @@ public class ConfigurationLoader {
 
             // 校验数据库类型
             String validatedDbType = ConfigurationLoader.validateDbType(rawDbType);
-            logger.info("数据库类型校验成功: {}", validatedDbType);
+            logger.info("Database type validation successful: {}", validatedDbType);
 
         } catch (IllegalArgumentException e) {
-            logger.error("数据库类型校验失败，服务器启动终止: {}", e.getMessage());
-            System.exit(1); // 退出程序
+            logger.error("Database type validation failed, server startup terminated: {}", e.getMessage());
+            System.exit(1); // Exit program
         }
     }
 
@@ -66,7 +65,7 @@ public class ConfigurationLoader {
      * @return JDBC连接配置对象，如果必需参数缺失则返回null
      */
     public static JdbcConnectionConfig loadJdbcConfig() {
-        logger.info("开始加载JDBC连接配置...");
+        logger.info("Starting to load JDBC connection configuration...");
 
         // 读取配置参数
         String rawDbType = getConfigValue(PROP_DB_TYPE, ENV_DB_TYPE, null);
@@ -85,13 +84,15 @@ public class ConfigurationLoader {
 
         // 验证配置完整性
         if (!config.isValid()) {
-            logger.warn("JDBC连接配置不完整，缺少必需参数。配置详情: {}", config);
-            logger.warn("必需参数: jdbcUrl, userName, password, dbType, jdbcDriver, jdbcDriverJar");
-            logger.warn("所有参数都是必需的，用于确保动态驱动加载功能正常工作");
+            logger.warn(
+                    "JDBC connection configuration incomplete, missing required parameters. Configuration details: {}",
+                    config);
+            logger.warn("Required parameters: jdbcUrl, userName, password, dbType, jdbcDriver, jdbcDriverJar");
+            logger.warn("All parameters are required to ensure dynamic driver loading functionality works properly");
             return null;
         }
 
-        logger.info("JDBC连接配置加载成功: {}", config);
+        logger.info("JDBC connection configuration loaded successfully: {}", config);
         return config;
     }
 
@@ -110,24 +111,26 @@ public class ConfigurationLoader {
         // 优先从系统属性读取
         String value = System.getProperty(propertyName);
         if (value != null && !value.trim().isEmpty()) {
-            logger.debug("从系统属性读取配置: {} = {}", propertyName, maskSensitiveValue(propertyName, value));
+            logger.debug("Reading configuration from system property: {} = {}", propertyName,
+                    maskSensitiveValue(propertyName, value));
             return value.trim();
         }
 
         // 从环境变量读取
         value = System.getenv(envName);
         if (value != null && !value.trim().isEmpty()) {
-            logger.debug("从环境变量读取配置: {} = {}", envName, maskSensitiveValue(envName, value));
+            logger.debug("Reading configuration from environment variable: {} = {}", envName,
+                    maskSensitiveValue(envName, value));
             return value.trim();
         }
 
         // 使用默认值
         if (defaultValue != null) {
-            logger.debug("使用默认配置: {} = {}", propertyName, defaultValue);
+            logger.debug("Using default configuration: {} = {}", propertyName, defaultValue);
             return defaultValue;
         }
 
-        logger.debug("配置项未设置: {} / {}", propertyName, envName);
+        logger.debug("Configuration item not set: {} / {}", propertyName, envName);
         return null;
     }
 
@@ -156,10 +159,10 @@ public class ConfigurationLoader {
      */
     public static String getConfigSourceInfo() {
         StringBuilder info = new StringBuilder();
-        info.append("配置来源信息:\n");
+        info.append("Configuration source information:\n");
 
-        // 检查系统属性
-        info.append("系统属性:\n");
+        // Check system properties
+        info.append("System properties:\n");
         checkAndAppendSource(info, PROP_DB_TYPE, "dbType");
         checkAndAppendSource(info, PROP_JDBC_DRIVER, "jdbcDriver");
         checkAndAppendSource(info, PROP_JDBC_DRIVER_JAR, "jdbcDriverJar");
@@ -167,8 +170,8 @@ public class ConfigurationLoader {
         checkAndAppendSource(info, PROP_USERNAME, "userName");
         checkAndAppendSource(info, PROP_PASSWORD, "password");
 
-        // 检查环境变量
-        info.append("环境变量:\n");
+        // Check environment variables
+        info.append("Environment variables:\n");
         checkAndAppendSource(info, ENV_DB_TYPE, "DB_TYPE");
         checkAndAppendSource(info, ENV_JDBC_DRIVER, "JDBC_DRIVER");
         checkAndAppendSource(info, ENV_JDBC_DRIVER_JAR, "JDBC_DRIVER_JAR");
@@ -189,13 +192,13 @@ public class ConfigurationLoader {
     private static void checkAndAppendSource(StringBuilder info, String key, String displayName) {
         String value = System.getProperty(key);
         if (value != null && !value.trim().isEmpty()) {
-            info.append("  ").append(displayName).append(": 系统属性\n");
+            info.append("  ").append(displayName).append(": System property\n");
         } else {
             value = System.getenv(key);
             if (value != null && !value.trim().isEmpty()) {
-                info.append("  ").append(displayName).append(": 环境变量\n");
+                info.append("  ").append(displayName).append(": Environment variable\n");
             } else {
-                info.append("  ").append(displayName).append(": 未设置\n");
+                info.append("  ").append(displayName).append(": Not set\n");
             }
         }
     }
@@ -213,34 +216,20 @@ public class ConfigurationLoader {
     public static String validateDbType(String dbType) {
         // 如果为空，使用默认值
         if (dbType == null || dbType.trim().isEmpty()) {
-            logger.info("数据库类型未指定，使用默认值: {}", DEFAULT_DB_TYPE);
+            logger.info("Database type not specified, using default value: {}", DEFAULT_DB_TYPE);
             return DEFAULT_DB_TYPE;
         }
 
         // 使用Druid的DbType进行校验
         com.alibaba.druid.DbType dbTypeEnum = com.alibaba.druid.DbType.of(dbType);
         if (dbTypeEnum == null) {
-            String errorMsg = String.format("不支持的数据库类型: %s。请使用Druid支持的数据库类型", dbType);
+            String errorMsg = String
+                    .format("Unsupported database type: %s. Please use database types supported by Druid", dbType);
             logger.error(errorMsg);
             throw new IllegalArgumentException(errorMsg);
         }
 
-        logger.info("数据库类型校验通过: {} (Druid DbType: {})", dbType, dbTypeEnum);
+        logger.info("Database type validation passed: {} (Druid DbType: {})", dbType, dbTypeEnum);
         return dbType;
-    }
-
-    /**
-     * 获取支持的数据库类型列表
-     *
-     * 注意：现在使用Druid的DbType进行校验，支持的数据库类型请参考Druid官方文档
-     * 常见的数据库类型包括：mysql, postgresql, oracle, sqlserver, sqlite, h2, db2, informix等
-     *
-     * @return 支持的数据库类型数组（已废弃，请参考Druid文档）
-     * @deprecated 使用Druid的DbType.of()方法进行数据库类型校验
-     */
-    @Deprecated
-    public static String[] getSupportedDbTypes() {
-        // 返回常见的数据库类型，但实际校验使用Druid的DbType.of()
-        return new String[] { "mysql", "postgresql", "oracle", "sqlserver", "sqlite", "h2", "db2", "informix" };
     }
 }

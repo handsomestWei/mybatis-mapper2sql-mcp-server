@@ -2,8 +2,8 @@
 <configuration>
     <!-- Console Appender -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        <encoder charset="UTF-8">
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36}:%line - %msg%n</pattern>
         </encoder>
     </appender>
 
@@ -14,14 +14,15 @@
             <fileNamePattern>logs/mapper2sql-mcp.%d{yyyy-MM-dd}.log</fileNamePattern>
             <maxHistory>30</maxHistory>
         </rollingPolicy>
-        <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        <encoder charset="UTF-8">
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36}:%line - %msg%n</pattern>
         </encoder>
     </appender>
 
     <!-- Root Logger -->
     <root level="DEBUG">
-        <appender-ref ref="CONSOLE" />
+        <!-- 关闭控制台输出，会污染stdio传输 -->
+        <!-- <appender-ref ref="CONSOLE" /> -->
         <appender-ref ref="FILE" />
     </root>
 
@@ -32,8 +33,8 @@
     <logger name="io.modelcontextprotocol" level="DEBUG" />
 
     <!-- MyBatis Logger -->
-    <logger name="org.apache.ibatis" level="WARN" />
+    <logger name="org.apache.ibatis" level="INFO" />
 
     <!-- Druid Logger -->
-    <logger name="com.alibaba.druid" level="WARN" />
+    <logger name="com.alibaba.druid" level="INFO" />
 </configuration>

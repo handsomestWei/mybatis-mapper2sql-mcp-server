@@ -13,7 +13,8 @@
                 "mapper2sql-mcp-server-1.0.0.jar"
             ],
             "env": {
-                "JAVA_HOME": "/path/to/jdk17"
+                "JAVA_HOME": "/path/to/jdk17",
+                "PATH": "/path/to/jdk17/bin;${PATH}"
             }
         }
     }

@@ -4,9 +4,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.lang.reflect.Field;
+import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.sql.Connection;
+import java.sql.Driver;
+import java.util.Properties;
 
 import com.wjy.mapper2sql.mcp.config.JdbcConnectionConfig;
 
@@ -15,7 +18,6 @@ import com.wjy.mapper2sql.mcp.config.JdbcConnectionConfig;
  *
  * 负责动态加载用户指定的JDBC驱动JAR文件
  * 支持从文件系统路径加载驱动类，并缓存已加载的驱动避免重复加载
- * 通过修改系统类路径，确保Class.forName能够找到驱动类
  *
  * @author handsomestWei
  * @version 1.0.0
@@ -27,15 +29,13 @@ public class JdbcDriverLoaderUtil {
     // 已加载的JDBC驱动类，避免重复加载
     private static Class<?> loadedDriver = null;
 
-    // 记录是否已经修改了系统类路径
-    private static boolean systemClassPathModified = false;
+    // 动态加载的类加载器
+    private static URLClassLoader dynamicClassLoader = null;
 
     /**
      * 加载JDBC驱动
      *
-     * 使用URLClassLoader动态加载用户指定的JDBC驱动JAR文件
-     * 支持从文件系统路径加载驱动类
-     * 通过修改系统类路径，确保Class.forName能够找到驱动类
+     * 从外部文件系统加载JDBC驱动JAR文件
      *
      * @param config JDBC连接配置
      * @return 加载的驱动类，如果加载失败则返回null
@@ -44,8 +44,9 @@ public class JdbcDriverLoaderUtil {
         try {
             // 检查配置是否支持动态加载
             if (!config.supportsDynamicLoading()) {
-                logger.warn("JDBC配置不支持动态加载，缺少驱动类名或JAR文件路径");
-                logger.warn("配置详情: {}", config);
+                logger.warn(
+                        "JDBC configuration does not support dynamic loading, missing driver class name or JAR file path");
+                logger.warn("Configuration details: {}", config);
                 return null;
             }
 
@@ -54,110 +55,101 @@ public class JdbcDriverLoaderUtil {
 
             // 检查是否已经加载过
             if (loadedDriver != null) {
-                logger.debug("JDBC驱动已加载: {}", driverClassName);
+                logger.debug("JDBC driver already loaded: {}", driverClassName);
                 return loadedDriver;
             }
 
-            // 验证JAR文件
-            if (!validateJarFile(driverJarPath)) {
-                logger.error("JDBC驱动JAR文件验证失败: {}", driverJarPath);
-                return null;
+            // 从外部文件系统加载
+            if (driverJarPath != null && !driverJarPath.trim().isEmpty()) {
+                Class<?> driverClass = loadFromExternalJar(driverJarPath, driverClassName);
+                if (driverClass != null) {
+                    logger.info("Successfully loaded JDBC driver: {} from {}", driverClassName, driverJarPath);
+                    loadedDriver = driverClass;
+                    return driverClass;
+                }
             }
 
-            // 将JAR文件添加到系统类路径
-            if (!addJarToSystemClassPath(driverJarPath)) {
-                logger.error("无法将JAR文件添加到系统类路径: {}", driverJarPath);
-                return null;
-            }
-
-            // 使用Class.forName加载驱动类（现在应该能找到）
-            try {
-                Class<?> driverClass = Class.forName(driverClassName);
-                logger.info("成功加载JDBC驱动: {} from {}", driverClassName, driverJarPath);
-
-                // 缓存已加载的驱动类
-                loadedDriver = driverClass;
-                return driverClass;
-
-            } catch (ClassNotFoundException e) {
-                logger.error("Class.forName无法找到驱动类: {}", driverClassName, e);
-                return null;
-            }
+            logger.error("Driver loading failed: {}", driverClassName);
+            return null;
 
         } catch (Exception e) {
-            logger.error("加载JDBC驱动失败: {}", config.getJdbcDriver(), e);
+            logger.error("Failed to load JDBC driver: {}", config.getJdbcDriver(), e);
             return null;
         }
     }
 
     /**
-     * 将JAR文件添加到系统类路径
+     * 从外部JAR文件加载驱动
      *
-     * 通过反射修改系统类加载器的URL数组，将JAR文件路径添加进去
-     * 这样Class.forName就能找到驱动类了
-     *
-     * @param jarPath JAR文件路径
-     * @return true表示成功，false表示失败
+     * @param jarPath         JAR文件路径
+     * @param driverClassName 驱动类名
+     * @return 加载的驱动类，如果失败则返回null
      */
-    private static boolean addJarToSystemClassPath(String jarPath) {
+    private static Class<?> loadFromExternalJar(String jarPath, String driverClassName) {
         try {
-            // 如果已经修改过系统类路径，直接返回成功
-            if (systemClassPathModified) {
-                logger.debug("系统类路径已经修改过，跳过重复操作");
-                return true;
+            // 验证JAR文件
+            if (!validateJarFile(jarPath)) {
+                logger.warn("External JAR file validation failed: {}", jarPath);
+                return null;
             }
 
+            // 创建URLClassLoader加载外部JAR
             File jarFile = new File(jarPath);
             URL jarUrl = jarFile.toURI().toURL();
 
-            // 获取系统类加载器
-            ClassLoader systemClassLoader = ClassLoader.getSystemClassLoader();
+            URLClassLoader externalLoader = new URLClassLoader(new URL[] { jarUrl },
+                    JdbcDriverLoaderUtil.class.getClassLoader());
 
-            if (systemClassLoader instanceof URLClassLoader) {
-                URLClassLoader urlClassLoader = (URLClassLoader) systemClassLoader;
-
-                // 通过反射获取URL数组
-                Field ucpField = URLClassLoader.class.getDeclaredField("ucp");
-                ucpField.setAccessible(true);
-                Object ucp = ucpField.get(urlClassLoader);
-
-                // 获取URL数组
-                Field pathField = ucp.getClass().getDeclaredField("path");
-                pathField.setAccessible(true);
-                URL[] path = (URL[]) pathField.get(ucp);
-
-                // 检查JAR是否已经在类路径中
-                for (URL url : path) {
-                    if (url.equals(jarUrl)) {
-                        logger.debug("JAR文件已在系统类路径中: {}", jarPath);
-                        systemClassPathModified = true;
-                        return true;
-                    }
-                }
-
-                // 添加新的URL到类路径
-                Field urlsField = ucp.getClass().getDeclaredField("urls");
-                urlsField.setAccessible(true);
-                URL[] urls = (URL[]) urlsField.get(ucp);
-
-                URL[] newUrls = new URL[urls.length + 1];
-                System.arraycopy(urls, 0, newUrls, 0, urls.length);
-                newUrls[urls.length] = jarUrl;
-
-                urlsField.set(ucp, newUrls);
-
-                logger.info("成功将JAR文件添加到系统类路径: {}", jarPath);
-                systemClassPathModified = true;
-                return true;
-
-            } else {
-                logger.warn("系统类加载器不是URLClassLoader，无法修改类路径: {}", systemClassLoader.getClass().getName());
-                return false;
+            try {
+                Class<?> driverClass = externalLoader.loadClass(driverClassName);
+                return driverClass;
+            } catch (ClassNotFoundException e) {
+                logger.warn("Driver class not found in external JAR: {} in {}", driverClassName, jarPath);
+                return null;
             }
 
         } catch (Exception e) {
-            logger.error("修改系统类路径失败: {}", jarPath, e);
-            return false;
+            logger.warn("Failed to load driver from external JAR: {} from {}", driverClassName, jarPath, e);
+            return null;
+        }
+    }
+
+    /**
+     * 使用已加载的驱动创建JDBC连接
+     * 动态加载驱动的场景，不在依赖包mapper2sql的内部加载驱动：
+     * 1）在DriverManager.getConnection()内部，isDriverAllowed方法会隔离类加载器，会导致取不到连接对象
+     * 2）所以在调用的上层创建连接对象并传入
+     *
+     * @param jdbcUrl  JDBC URL
+     * @param userName 用户名
+     * @param password 密码
+     * @return JDBC连接，如果失败则返回null
+     */
+    public static Connection createConnection(String jdbcUrl, String userName, String password) {
+        if (loadedDriver == null) {
+            logger.warn("No JDBC driver loaded, cannot create connection");
+            return null;
+        }
+
+        try {
+            // 使用已加载的驱动类创建连接
+            Driver driver = (Driver) loadedDriver.getDeclaredConstructor().newInstance();
+            Properties props = new Properties();
+            props.setProperty("user", userName);
+            props.setProperty("password", password);
+
+            Connection connection = driver.connect(jdbcUrl, props);
+            if (connection != null) {
+                logger.info("Successfully created JDBC connection to: {}", jdbcUrl);
+                return connection;
+            } else {
+                logger.warn("Driver returned null connection for URL: {}", jdbcUrl);
+                return null;
+            }
+
+        } catch (Exception e) {
+            logger.error("Failed to create JDBC connection: {}", e.getMessage(), e);
+            return null;
         }
     }
 
@@ -186,8 +178,18 @@ public class JdbcDriverLoaderUtil {
      */
     public static void clearLoadedDriver() {
         loadedDriver = null;
-        systemClassPathModified = false;
-        logger.debug("已清除缓存的JDBC驱动和类路径修改状态");
+
+        // 清理动态类加载器
+        if (dynamicClassLoader != null) {
+            try {
+                dynamicClassLoader.close();
+            } catch (IOException e) {
+                logger.warn("Failed to close dynamic class loader", e);
+            }
+            dynamicClassLoader = null;
+        }
+
+        logger.debug("Cleared cached JDBC driver and class loader");
     }
 
     /**
@@ -198,9 +200,9 @@ public class JdbcDriverLoaderUtil {
      * @param jarPath JAR文件路径
      * @return true表示文件有效，false表示文件无效
      */
-    public static boolean validateJarFile(String jarPath) {
+    private static boolean validateJarFile(String jarPath) {
         if (jarPath == null || jarPath.trim().isEmpty()) {
-            logger.warn("JAR文件路径为空");
+            logger.warn("JAR file path is empty");
             return false;
         }
 
@@ -208,29 +210,29 @@ public class JdbcDriverLoaderUtil {
 
         // 检查文件是否存在
         if (!jarFile.exists()) {
-            logger.warn("JAR文件不存在: {}", jarPath);
+            logger.warn("JAR file does not exist: {}", jarPath);
             return false;
         }
 
         // 检查是否为文件
         if (!jarFile.isFile()) {
-            logger.warn("指定路径不是文件: {}", jarPath);
+            logger.warn("Specified path is not a file: {}", jarPath);
             return false;
         }
 
         // 检查是否可读
         if (!jarFile.canRead()) {
-            logger.warn("JAR文件不可读: {}", jarPath);
+            logger.warn("JAR file is not readable: {}", jarPath);
             return false;
         }
 
         // 检查文件扩展名
         if (!jarFile.getName().toLowerCase().endsWith(".jar")) {
-            logger.warn("文件扩展名不是.jar: {}", jarPath);
+            logger.warn("File extension is not .jar: {}", jarPath);
             return false;
         }
 
-        logger.debug("JAR文件验证通过: {}", jarPath);
+        logger.debug("JAR file validation passed: {}", jarPath);
         return true;
     }
 
@@ -242,17 +244,14 @@ public class JdbcDriverLoaderUtil {
     public static String getDriverStatusInfo() {
         StringBuilder info = new StringBuilder();
         if (loadedDriver == null) {
-            info.append("JDBC驱动未加载");
+            info.append("JDBC driver not loaded");
         } else {
-            info.append(String.format("JDBC驱动已加载: %s", loadedDriver.getName()));
+            info.append(String.format("JDBC driver loaded: %s", loadedDriver.getName()));
+            info.append(String.format(" (loader: %s)", loadedDriver.getClassLoader().getClass().getSimpleName()));
         }
-
-        if (systemClassPathModified) {
-            info.append(", 系统类路径已修改");
-        } else {
-            info.append(", 系统类路径未修改");
+        if (dynamicClassLoader != null) {
+            info.append(", dynamic class loader created");
         }
-
         return info.toString();
     }
 }

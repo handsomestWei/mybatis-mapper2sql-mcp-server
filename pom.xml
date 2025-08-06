@@ -3,6 +3,12 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.4.5</version>
+        <relativePath /> <!-- lookup parent from repository -->
+    </parent>
     <groupId>com.wjy</groupId>
     <artifactId>mapper2sql-mcp-server</artifactId>
     <version>1.0.0</version>
@@ -20,16 +26,48 @@
         <druid.version>1.2.23</druid.version>
         <jackson.version>2.15.2</jackson.version>
         <slf4j.version>2.0.7</slf4j.version>
-        <logback.version>1.4.11</logback.version>
+        <spring-boot.version>3.4.5</spring-boot.version>
+        <spring-ai.version>1.0.0</spring-ai.version>
     </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-bom</artifactId>
+                <version>1.1.0-SNAPSHOT</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <dependencies>
         <!-- MCP Core -->
-        <dependency>
-            <!-- https://github.com/modelcontextprotocol/java-sdk -->
+        <!-- https://github.com/modelcontextprotocol/java-sdk -->
+        <!-- <dependency>
             <groupId>io.modelcontextprotocol.sdk</groupId>
             <artifactId>mcp</artifactId>
             <version>${mcp.version}</version>
+        </dependency> -->
+
+        <!-- https://github.com/spring-projects/spring-ai-examples/issues/17 -->
+        <!-- Spring Boot Starter -->
+        <!-- <dependency>
+            <groupId>org.springframework.</groupId>
+            <artifactId>spring-boot-starter</artifactId>
+            <version>${spring-boot.version}</version>
+        </dependency> -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-web</artifactId>
+        </dependency>
+
+        <!-- Spring AI MCP Server -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-mcp-server</artifactId>
+            <!-- <version>1.0.0</version> -->
         </dependency>
 
         <!-- JSON Processing -->
@@ -44,11 +82,6 @@
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
             <version>${slf4j.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>ch.qos.logback</groupId>
-            <artifactId>logback-classic</artifactId>
-            <version>${logback.version}</version>
         </dependency>
 
         <!-- Lombok -->
@@ -88,6 +121,25 @@
             <artifactId>commons-lang3</artifactId>
             <version>3.12.0</version>
         </dependency>
+
+        <!-- Test Dependencies -->
+        <!-- <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-mcp-client</artifactId>
+            <version>1.0.0</version>
+        </dependency> -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>5.10.0</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <version>${spring-boot.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -103,26 +155,35 @@
                 </configuration>
             </plugin>
 
-            <!-- 生成thin jar，便于动态驱动加载 -->
+            <!-- Spring Boot Maven Plugin - 生成可执行的fat jar -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <version>${spring-boot.version}</version>
+                <configuration>
+                    <mainClass>com.wjy.mapper2sql.mcp.Mapper2SqlMcpApplication</mainClass>
+                    <layout>JAR</layout>
+                    <!-- 包含system scope的依赖 -->
+                    <includeSystemScope>true</includeSystemScope>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- 生成thin jar，Spring Boot plugin会基于它生成fat jar -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
                 <version>3.3.0</version>
-                <executions>
-                    <execution>
-                        <id>default-jar</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>jar</goal>
-                        </goals>
-                    </execution>
-                </executions>
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>com.wjy.mapper2sql.mcp.Mapper2SqlMcpStdioServer</mainClass>
-                            <addClasspath>true</addClasspath>
-                            <classpathPrefix>lib/</classpathPrefix>
+                            <mainClass>com.wjy.mapper2sql.mcp.Mapper2SqlMcpApplication</mainClass>
                         </manifest>
                     </archive>
                 </configuration>
@@ -134,8 +195,9 @@
                 <artifactId>maven-dependency-plugin</artifactId>
                 <version>3.6.0</version>
                 <executions>
+                    <!-- 复制compile scope依赖 -->
                     <execution>
-                        <id>copy-dependencies</id>
+                        <id>copy-compile-dependencies</id>
                         <phase>package</phase>
                         <goals>
                             <goal>copy-dependencies</goal>
@@ -143,6 +205,20 @@
                         <configuration>
                             <outputDirectory>${project.build.directory}/lib</outputDirectory>
                             <includeScope>compile</includeScope>
+                            <excludeTransitive>false</excludeTransitive>
+                        </configuration>
+                    </execution>
+
+                    <!-- 复制runtime scope依赖 -->
+                    <execution>
+                        <id>copy-runtime-dependencies</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>copy-dependencies</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.directory}/lib</outputDirectory>
+                            <includeScope>runtime</includeScope>
                             <excludeTransitive>false</excludeTransitive>
                         </configuration>
                     </execution>
@@ -171,4 +247,34 @@
             </plugin>
         </plugins>
     </build>
+
+    <repositories>
+        <repository>
+            <id>spring-milestones</id>
+            <name>Spring Milestones</name>
+            <url>https://repo.spring.io/milestone</url>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+        <repository>
+            <id>spring-snapshots</id>
+            <name>Spring Snapshots</name>
+            <url>https://repo.spring.io/snapshot</url>
+            <releases>
+                <enabled>false</enabled>
+            </releases>
+        </repository>
+        <repository>
+            <id>central-portal-snapshots</id>
+            <name>Central Portal Snapshots</name>
+            <url>https://central.sonatype.com/repository/maven-snapshots/</url>
+            <releases>
+                <enabled>false</enabled>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
 </project>
